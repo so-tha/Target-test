@@ -6,7 +6,10 @@ namespace Desafio.Core;
 public enum TipoMovimentacao { Entrada, Saida }
 
 /// <summary>Violação de regra de negócio (produto inexistente, saldo insuficiente...).</summary>
-public sealed class EstoqueException(string mensagem) : Exception(mensagem);
+public class EstoqueException(string mensagem) : Exception(mensagem);
+
+public sealed class ProdutoNaoEncontradoException(int codigo)
+    : EstoqueException($"produto {codigo} não encontrado");
 
 public sealed class Produto
 {
@@ -33,7 +36,8 @@ public sealed class Deposito
     };
 
     private readonly string _caminho;
-    private Estado _estado;
+    private readonly Estado _estado;
+    private readonly object _trava = new(); // a API é concorrente; o Deposito é singleton
 
     public Deposito(string caminhoEstado, string? caminhoSemente = null)
     {
@@ -48,19 +52,29 @@ public sealed class Deposito
         _estado = JsonSerializer.Deserialize<Estado>(File.ReadAllText(caminhoEstado), Opcoes)!;
     }
 
-    public IReadOnlyList<Produto> Produtos => _estado.Produtos;
-    public IReadOnlyList<Movimentacao> Historico => _estado.Movimentacoes;
+    // Cópias sob trava: leituras concorrentes nunca enxergam uma lista (ou produto) pela metade.
+    public IReadOnlyList<Produto> Produtos { get { lock (_trava) return _estado.Produtos.Select(Copiar).ToList(); } }
+    public IReadOnlyList<Movimentacao> Historico { get { lock (_trava) return _estado.Movimentacoes.ToList(); } }
 
-    public Produto ObterProduto(int codigo) =>
+    private static Produto Copiar(Produto p) => new() { Codigo = p.Codigo, Descricao = p.Descricao, Estoque = p.Estoque };
+
+    public Produto ObterProduto(int codigo) { lock (_trava) return Copiar(Buscar(codigo)); }
+
+    private Produto Buscar(int codigo) =>
         _estado.Produtos.FirstOrDefault(p => p.Codigo == codigo)
-        ?? throw new EstoqueException($"produto {codigo} não encontrado");
+        ?? throw new ProdutoNaoEncontradoException(codigo);
 
     public Movimentacao Movimentar(int codigo, TipoMovimentacao tipo, int quantidade, string descricao)
+    {
+        lock (_trava) return MovimentarSemTrava(codigo, tipo, quantidade, descricao);
+    }
+
+    private Movimentacao MovimentarSemTrava(int codigo, TipoMovimentacao tipo, int quantidade, string descricao)
     {
         if (quantidade <= 0) throw new EstoqueException("A quantidade deve ser um inteiro positivo");
         if (string.IsNullOrWhiteSpace(descricao)) throw new EstoqueException("A descrição da movimentação é obrigatória");
 
-        var produto = ObterProduto(codigo);
+        var produto = Buscar(codigo);
         var saldo = produto.Estoque + (tipo == TipoMovimentacao.Entrada ? quantidade : -quantidade);
         if (saldo < 0)
             throw new EstoqueException($"Saldo insuficiente: há {produto.Estoque} un. e a saída pede {quantidade}");

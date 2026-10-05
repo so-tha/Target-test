@@ -16,6 +16,6 @@ public static class Dinheiro
         Math.Round(valor, 2, MidpointRounding.AwayFromZero);
 
     /// <summary>Formata como moeda brasileira: R$ 1.234,56 (independe da cultura do SO).</summary>
-    public static string FormatarBrl(decimal valor) =>
-        "R$ " + Arredondar(valor).ToString("N2", Brasil);
+    public static string FormatarBrl(decimal valor, int casas = 2) =>
+        "R$ " + Math.Round(valor, casas, MidpointRounding.AwayFromZero).ToString($"N{casas}", Brasil);
 }

@@ -32,6 +32,18 @@ public class ComissaoTests
     }
 }
 
+public class DetalheTests
+{
+    [Fact]
+    public void Detalhe_por_faixa_fecha_com_o_total()
+    {
+        var joao = CalculadoraComissao.Calcular([
+            new("A", 50m), new("A", 100m), new("A", 499.99m), new("A", 500m)]).Single();
+        Assert.Equal([1, 2, 1], joao.Faixas.Select(f => f.Vendas));
+        Assert.Equal(joao.Comissao, Dinheiro.Arredondar(joao.Faixas.Sum(f => f.Comissao)));
+    }
+}
+
 public class EstoqueTests : IDisposable
 {
     private readonly string _dir = Directory.CreateTempSubdirectory().FullName;
@@ -65,7 +77,7 @@ public class EstoqueTests : IDisposable
     public void Regras_de_negocio_nao_alteram_o_estado(int cod, TipoMovimentacao t, int q, string desc)
     {
         var d = Novo();
-        Assert.Throws<EstoqueException>(() => d.Movimentar(cod, t, q, desc));
+        Assert.ThrowsAny<EstoqueException>(() => d.Movimentar(cod, t, q, desc));
         Assert.Equal(150, d.ObterProduto(101).Estoque);
         Assert.Empty(d.Historico);
     }
@@ -82,6 +94,15 @@ public class JurosTests
         Assert.Equal((10, 250.00m, 1250.00m), (r.DiasAtraso, r.JurosSimples, r.TotalSimples));
         // 1000 × (1,025^10 − 1) = 280,08
         Assert.Equal((280.08m, 1280.08m), (r.JurosCompostos, r.TotalCompostos));
+    }
+
+    [Fact]
+    public void Atraso_enorme_mantem_simples_e_marca_composto_indisponivel()
+    {
+        var r = CalculadoraJuros.Calcular(1000m, new(1990, 1, 1), Hoje);
+        Assert.True(r.JurosSimples > 0);
+        Assert.Null(r.JurosCompostos);
+        Assert.Null(r.TotalCompostos);
     }
 
     [Fact]

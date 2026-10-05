@@ -7,27 +7,31 @@ public sealed record Venda(
     [property: JsonPropertyName("vendedor")] string Vendedor,
     [property: JsonPropertyName("valor")] decimal Valor);
 
-public sealed record ResumoVendedor(string Vendedor, decimal TotalVendido, decimal Comissao);
+/// <summary>Quanto das vendas de um vendedor caiu em cada faixa de comissão.</summary>
+public sealed record DetalheFaixa(string Descricao, decimal Percentual, int Vendas, decimal TotalVendido, decimal Comissao);
+
+public sealed record ResumoVendedor(
+    string Vendedor, decimal TotalVendido, decimal Comissao, IReadOnlyList<DetalheFaixa> Faixas);
 
 /// <summary>
 /// Questão 1. Regra por venda: &lt; R$100 → 0%; &lt; R$500 → 1%; ≥ R$500 → 5%.
 /// </summary>
 public static class CalculadoraComissao
 {
-    // Faixas em ordem crescente: (limite superior exclusivo, percentual). A última é aberta.
-    private static readonly (decimal? Limite, decimal Taxa)[] Faixas =
+    private sealed record Faixa(decimal? Limite, decimal Taxa, string Descricao);
+
+    // Em ordem crescente; limite superior exclusivo. A última é aberta.
+    private static readonly Faixa[] Faixas =
     [
-        (100m, 0m),
-        (500m, 0.01m),
-        (null, 0.05m),
+        new(100m, 0m, "abaixo de R$ 100,00"),
+        new(500m, 0.01m, "de R$ 100,00 a R$ 499,99"),
+        new(null, 0.05m, "a partir de R$ 500,00"),
     ];
 
-    public static decimal Percentual(decimal valor)
-    {
-        foreach (var (limite, taxa) in Faixas)
-            if (limite is null || valor < limite) return taxa;
-        throw new InvalidOperationException("inalcançável: a última faixa é aberta");
-    }
+    private static Faixa FaixaDe(decimal valor) =>
+        Faixas.First(f => f.Limite is null || valor < f.Limite);
+
+    public static decimal Percentual(decimal valor) => FaixaDe(valor).Taxa;
 
     public static decimal ComissaoDaVenda(decimal valor) =>
         valor < 0
@@ -41,8 +45,27 @@ public static class CalculadoraComissao
             .Select(g => new ResumoVendedor(
                 g.Key,
                 Dinheiro.Arredondar(g.Sum(v => v.Valor)),
-                Dinheiro.Arredondar(g.Sum(v => ComissaoDaVenda(v.Valor)))))
+                Dinheiro.Arredondar(g.Sum(v => ComissaoDaVenda(v.Valor))),
+                Detalhar(g)))
             .ToList();
+
+    private static List<DetalheFaixa> Detalhar(IEnumerable<Venda> vendas)
+    {
+        var porFaixa = vendas.ToLookup(v => FaixaDe(v.Valor));
+        return Faixas.Select(f => new DetalheFaixa(
+            f.Descricao, f.Taxa, porFaixa[f].Count(),
+            Dinheiro.Arredondar(porFaixa[f].Sum(v => v.Valor)),
+            porFaixa[f].Sum(v => ComissaoDaVenda(v.Valor)))).ToList(); // exata: só o total do vendedor é arredondado
+    }
+
+    /// <summary>CSV para Excel pt-BR: separador ";" e vírgula decimal.</summary>
+    public static string ParaCsv(IEnumerable<ResumoVendedor> resumo)
+    {
+        var pt = new System.Globalization.CultureInfo("pt-BR");
+        var linhas = resumo.Select(r =>
+            $"{r.Vendedor};{r.TotalVendido.ToString("F2", pt)};{r.Comissao.ToString("F2", pt)}");
+        return string.Join('\n', linhas.Prepend("Vendedor;TotalVendido;Comissao"));
+    }
 
     public static IReadOnlyList<Venda> Carregar(string caminho)
     {

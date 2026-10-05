@@ -1,28 +1,37 @@
 # Desafio Dev (C# / .NET 8)
 
-Solução das 3 questões do desafio, sem dependências além do SDK (xunit só nos testes).
+As 3 questões, em três formas de uso: **CLI com menu interativo**, **API REST com Swagger** e **testes automatizados** (27).
 
+## Resultados (questão 1)
+| Vendedor | Total vendido | Comissão |
+|---|---|---|
+| João Silva | R$ 10.754,70 | **R$ 495,68** |
+| Maria Souza | R$ 9.874,30 | **R$ 465,95** |
+| Carlos Oliveira | R$ 7.928,35 | **R$ 379,37** |
+| Ana Lima | R$ 8.763,95 | **R$ 404,98** |
+
+## Como rodar (só o .NET 8 SDK)
+```bash
+dotnet run --project src/Desafio.Cli            # menu interativo
+dotnet run --project src/Desafio.Api            # API; Swagger na raiz (porta mostrada no console)
+dotnet test
 ```
-dotnet test                                   # 20 testes
-dotnet run --project src/Desafio.Cli -- comissao
-dotnet run --project src/Desafio.Cli -- estoque entrada 101 50 "Compra NF 123"
-dotnet run --project src/Desafio.Cli -- estoque saida 101 30 "Venda balcão"
-dotnet run --project src/Desafio.Cli -- estoque listar | historico
-dotnet run --project src/Desafio.Cli -- juros 1000 24/09/2026 [--hoje 04/10/2026]
+Subcomandos da CLI:
+```bash
+desafio comissao [--detalhe] [--csv saida.csv]
+desafio estoque listar | historico
+desafio estoque entrada|saida 101 50 "Compra NF 123"
+desafio juros 1000 24/09/2026 [--hoje 04/10/2026]
 ```
+API: `GET /comissoes[?formato=csv]`, `GET /estoque`, `GET /estoque/{codigo}`, `GET|POST /estoque/movimentacoes`, `GET /juros?valor=&vencimento=&hoje=`.
+Erros viram respostas padronizadas (404 produto inexistente, 422 saldo insuficiente, 400 entrada inválida).
 
 ## Estrutura
-- `src/Desafio.Core`: regras de negócio puras e testáveis (`Comissao`, `Estoque`, `Juros`, `Dinheiro`).
-- `src/Desafio.Cli`: interface de linha de comando fina.
-- `tests/Desafio.Tests`: testes de limites, regras de negócio e dados reais do desafio.
-- `data/`: os JSON do enunciado.
+- `src/Desafio.Core`: regras de negócio puras. CLI e API são camadas finas sobre ele.
+- `src/Desafio.Cli`, `src/Desafio.Api`, `tests/Desafio.Tests`, `data/` (JSON do enunciado).
 
 ## Decisões
 - **`decimal` em todo valor monetário**, nunca `double`; arredondamento comercial (meio para cima).
-- **Q1**: faixas em tabela (fácil de alterar). Limites exatos: R$100 → 1%, R$500 → 5%. A comissão é calculada venda a venda e arredondada só no total do vendedor.
-  Resultado: João R$ 495,68 · Maria R$ 465,95 · Carlos R$ 379,37 · Ana R$ 404,98.
-- **Q2**: cada movimentação tem ID sequencial único, descrição obrigatória, tipo, data e saldo final. Saída acima do saldo é recusada sem alterar nada. Estado e histórico persistem em `estado_estoque.json` (criado a partir do JSON semente, gravação atômica). Caminho configurável com `DESAFIO_ESTADO`.
-- **Q3**: o enunciado é ambíguo ("multa/juros de 2,5% ao dia"), então a CLI mostra **os dois regimes**, por dia corrido de atraso, sem juros se não houver atraso:
-  - simples: `valor × 2,5% × dias`
-  - composto: `valor × ((1,025^dias) − 1)`
-  Exemplo (R$ 1.000, 10 dias): simples R$ 250,00; composto R$ 280,08.
+- **Q1**: faixas numa tabela (fácil de alterar); R$ 100 exatos → 1%, R$ 500 exatos → 5%. A comissão é somada sem arredondar e arredondada só no total do vendedor. `--detalhe` mostra quantas vendas caíram em cada faixa.
+- **Q2**: ID sequencial único por movimentação, descrição obrigatória, tipo, data e saldo final. Saída acima do saldo é recusada sem alterar nada. Estado e histórico persistem em `estado_estoque.json` (gravação atômica; caminho via `DESAFIO_ESTADO` ou `Estoque:Estado`). O depósito é thread-safe para uso pela API.
+- **Q3**: o enunciado não diz o regime, então calcula **simples** (`valor × 2,5% × dias`) e **composto** (`valor × (1,025^dias − 1)`). Ex.: R$ 1.000, 10 dias → R$ 250,00 e R$ 280,08. Sem atraso, sem juros. Em atrasos absurdos o composto estoura o `decimal` e aparece como indisponível; o simples continua sendo calculado.

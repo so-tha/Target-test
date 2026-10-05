@@ -4,10 +4,11 @@ namespace Desafio.Core;
 
 public sealed record ResultadoJuros(
     decimal Valor, DateOnly Vencimento, DateOnly Hoje, int DiasAtraso,
-    decimal JurosSimples, decimal JurosCompostos)
+    decimal JurosSimples, decimal? JurosCompostos)
 {
     public decimal TotalSimples => Valor + JurosSimples;
-    public decimal TotalCompostos => Valor + JurosCompostos;
+    /// <summary>Nulo quando o atraso é tão longo que o composto excede o limite do decimal.</summary>
+    public decimal? TotalCompostos => Valor + JurosCompostos;
 }
 
 /// <summary>
@@ -28,15 +29,19 @@ public static class CalculadoraJuros
         var dias = Math.Max(data.DayNumber - vencimento.DayNumber, 0);
         return new(valor, vencimento, data, dias,
             Dinheiro.Arredondar(valor * taxaDiaria * dias),
-            Dinheiro.Arredondar(valor * (Potencia(1 + taxaDiaria, dias) - 1)));
+            JurosCompostos(valor, taxaDiaria, dias));
     }
 
-    // Math.Pow só opera em double; aqui mantemos decimal. Estoura (OverflowException) em atrasos absurdos.
-    private static decimal Potencia(decimal b, int n)
+    // Math.Pow só opera em double; aqui mantemos decimal, multiplicando dia a dia.
+    private static decimal? JurosCompostos(decimal valor, decimal taxa, int dias)
     {
-        var r = 1m;
-        for (var i = 0; i < n; i++) r *= b;
-        return r;
+        try
+        {
+            var fator = 1m;
+            for (var i = 0; i < dias; i++) fator *= 1 + taxa;
+            return Dinheiro.Arredondar(valor * (fator - 1));
+        }
+        catch (OverflowException) { return null; }
     }
 
     /// <summary>Aceita DD/MM/AAAA ou AAAA-MM-DD.</summary>
