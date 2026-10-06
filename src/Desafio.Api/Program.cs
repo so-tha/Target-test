@@ -11,12 +11,12 @@ var estado = builder.Configuration["Estoque:Estado"]
 builder.Services.AddSingleton(new Deposito(estado, Path.Combine(dados, "estoque.json")));
 builder.Services.Configure<JsonOptions>(o => o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(o => o.SwaggerDoc("v1", new() { Title = "Desafio Dev API", Version = "v1" }));
+builder.Services.AddSwaggerGen(o => o.SwaggerDoc("v1", new() { Title = "Target API", Version = "v1" }));
 
 var app = builder.Build();
 
 app.UseSwagger();
-app.UseSwaggerUI(o => { o.SwaggerEndpoint("/swagger/v1/swagger.json", "Desafio Dev API"); o.RoutePrefix = ""; });
+app.UseSwaggerUI(o => { o.SwaggerEndpoint("/swagger/v1/swagger.json", "Target API"); o.RoutePrefix = ""; });
 
 app.Use(async (ctx, next) =>
 {
