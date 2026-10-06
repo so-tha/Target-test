@@ -7,7 +7,6 @@ public sealed record Venda(
     [property: JsonPropertyName("vendedor")] string Vendedor,
     [property: JsonPropertyName("valor")] decimal Valor);
 
-/// <summary>Quanto das vendas de um vendedor caiu em cada faixa de comissão.</summary>
 public sealed record DetalheFaixa(string Descricao, decimal Percentual, int Vendas, decimal TotalVendido, decimal Comissao);
 
 public sealed record ResumoVendedor(

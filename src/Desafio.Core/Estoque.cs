@@ -5,7 +5,6 @@ namespace Desafio.Core;
 
 public enum TipoMovimentacao { Entrada, Saida }
 
-/// <summary>Violação de regra de negócio (produto inexistente, saldo insuficiente...).</summary>
 public class EstoqueException(string mensagem) : Exception(mensagem);
 
 public sealed class ProdutoNaoEncontradoException(int codigo)

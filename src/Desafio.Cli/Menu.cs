@@ -11,7 +11,7 @@ public static class Menu
         {
             Console.WriteLine("""
 
-                === Desafio Dev ===
+                === Target Dev ===
                 1) Comissão por vendedor
                 2) Movimentar estoque
                 3) Juros por atraso

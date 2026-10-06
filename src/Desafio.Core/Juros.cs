@@ -7,7 +7,6 @@ public sealed record ResultadoJuros(
     decimal JurosSimples, decimal? JurosCompostos)
 {
     public decimal TotalSimples => Valor + JurosSimples;
-    /// <summary>Nulo quando o atraso é tão longo que o composto excede o limite do decimal.</summary>
     public decimal? TotalCompostos => Valor + JurosCompostos;
 }
 
@@ -32,7 +31,6 @@ public static class CalculadoraJuros
             JurosCompostos(valor, taxaDiaria, dias));
     }
 
-    // Math.Pow só opera em double; aqui mantemos decimal, multiplicando dia a dia.
     private static decimal? JurosCompostos(decimal valor, decimal taxa, int dias)
     {
         try
@@ -44,14 +42,12 @@ public static class CalculadoraJuros
         catch (OverflowException) { return null; }
     }
 
-    /// <summary>Aceita DD/MM/AAAA ou AAAA-MM-DD.</summary>
     public static DateOnly ParseData(string texto) =>
         DateOnly.TryParseExact(texto.Trim(), ["dd/MM/yyyy", "yyyy-MM-dd"],
             CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)
             ? d
             : throw new FormatException($"data inválida: '{texto}' (use DD/MM/AAAA ou AAAA-MM-DD)");
 
-    /// <summary>Aceita vírgula ou ponto decimal ("1500,50" ou "1500.50").</summary>
     public static decimal ParseValor(string texto) =>
         decimal.TryParse(texto.Replace(',', '.'), NumberStyles.Number, CultureInfo.InvariantCulture, out var v)
             ? v

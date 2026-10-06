@@ -2,7 +2,6 @@ using System.Globalization;
 
 namespace Desafio.Core;
 
-/// <summary>Utilitários monetários compartilhados (sempre decimal, nunca double).</summary>
 public static class Dinheiro
 {
     private static readonly NumberFormatInfo Brasil = new()
@@ -11,7 +10,6 @@ public static class Dinheiro
         NumberGroupSeparator = ".",
     };
 
-    /// <summary>Arredonda para centavos (meio para cima, como no comércio).</summary>
     public static decimal Arredondar(decimal valor) =>
         Math.Round(valor, 2, MidpointRounding.AwayFromZero);
 

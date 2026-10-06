@@ -18,7 +18,6 @@ var app = builder.Build();
 app.UseSwagger();
 app.UseSwaggerUI(o => { o.SwaggerEndpoint("/swagger/v1/swagger.json", "Desafio Dev API"); o.RoutePrefix = ""; });
 
-// Erros de regra de negócio e de entrada viram respostas HTTP padronizadas (RFC 7807).
 app.Use(async (ctx, next) =>
 {
     try { await next(ctx); }
@@ -34,7 +33,6 @@ app.Use(async (ctx, next) =>
     }
 });
 
-// ---- Q1: comissões --------------------------------------------------------
 app.MapGet("/comissoes", (string? formato) =>
 {
     var resumo = CalculadoraComissao.Calcular(
@@ -45,7 +43,6 @@ app.MapGet("/comissoes", (string? formato) =>
         : Results.Ok(resumo);
 }).WithTags("Comissões").WithSummary("Comissão por vendedor (use ?formato=csv para exportar)");
 
-// ---- Q2: estoque ----------------------------------------------------------
 var estoque = app.MapGroup("/estoque").WithTags("Estoque");
 estoque.MapGet("/", (Deposito d) => d.Produtos).WithSummary("Produtos e saldos");
 estoque.MapGet("/{codigo:int}", (int codigo, Deposito d) => d.ObterProduto(codigo)).WithSummary("Saldo de um produto");
@@ -56,7 +53,6 @@ estoque.MapPost("/movimentacoes", (NovaMovimentacao m, Deposito d) =>
     return Results.Created($"/estoque/movimentacoes/{mov.Id}", mov); // inclui estoqueFinal
 }).WithSummary("Lança entrada ou saída; retorna a movimentação com o estoque final");
 
-// ---- Q3: juros ------------------------------------------------------------
 app.MapGet("/juros", (string valor, string vencimento, string? hoje) =>
     CalculadoraJuros.Calcular(
         CalculadoraJuros.ParseValor(valor),
@@ -68,4 +64,4 @@ app.Run();
 
 record NovaMovimentacao(int CodigoProduto, TipoMovimentacao Tipo, int Quantidade, string? Descricao);
 
-public partial class Program; // visível para os testes de integração
+public partial class Program; 
